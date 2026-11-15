@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generador de Antecedentes de Hecho — offline</title>
+<style>
+  :root{
+    --paper:#FCFCFA;
+    --app-bg:#E7EAE6;
+    --ink:#1A1D1A;
+    --muted:#6A6F69;
+    --line:#D5D8D1;
+    --line-soft:#E4E7E1;
+    --garnet:#7A2230;
+    --garnet-hi:#94303F;
+    --garnet-soft:#F1E3E4;
+    --slate:#2F5D4A;
+    --focus:#94303F;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --serif:Georgia,"Times New Roman",'Iowan Old Style',serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--sans);
+    color:var(--ink);
+    background:var(--app-bg);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1220px;margin:0 auto;padding:22px 22px 60px;}
+
+  /* Header */
+  header.top{
+    display:flex;align-items:baseline;justify-content:space-between;
+    gap:16px;flex-wrap:wrap;
+    border-bottom:2px solid var(--ink);
+    padding-bottom:14px;margin-bottom:22px;
+  }
+  header.top h1{
+    font-family:var(--serif);
+    font-size:1.5rem;font-weight:700;margin:0;letter-spacing:.2px;
+  }
+  header.top h1 .sub{
+    display:block;font-family:var(--sans);font-weight:500;
+    font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--garnet);margin-bottom:4px;
+  }
+  .offline{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:.74rem;color:var(--slate);
+    background:#E4EDE7;border:1px solid #CBDBD1;border-radius:999px;
+    padding:6px 12px;white-space:nowrap;
+  }
+  .offline .dot{width:8px;height:8px;border-radius:50%;background:var(--slate);
+    box-shadow:0 0 0 3px #cfe1d7;}
+
+  /* Layout */
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start;}
+  @media (max-width:900px){.grid{grid-template-columns:1fr;}}
+
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  .panel .head{
+    padding:13px 18px;border-bottom:1px solid var(--line-soft);
+    display:flex;align-items:center;gap:10px;justify-content:space-between;
+  }
+  .panel .head .step{
+    display:flex;align-items:center;gap:10px;
+  }
+  .panel .head .num{
+    font-family:var(--serif);font-weight:700;color:var(--garnet);
+    font-size:.82rem;letter-spacing:.1em;
+    border:1.5px solid var(--garnet);border-radius:6px;
+    padding:2px 8px;line-height:1.2;
+  }
+  .panel .head h2{font-size:.95rem;margin:0;font-weight:600;}
+  .panel .body{padding:18px;}
+
+  label.fld{display:block;font-size:.74rem;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.08em;margin:0 0 6px;font-weight:600;}
+
+  textarea,input[type=text],select{
+    width:100%;font-family:var(--sans);font-size:.92rem;color:var(--ink);
+    background:#fff;border:1px solid var(--line);border-radius:7px;
+    padding:9px 11px;line-height:1.45;
+  }
+  textarea{resize:vertical;}
+  #raw{min-height:230px;font-family:var(--serif);font-size:.9rem;line-height:1.55;}
+  textarea:focus,input:focus,select:focus{outline:2px solid var(--focus);outline-offset:1px;border-color:var(--focus);}
+
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px;}
+  .grow{flex:1 1 auto;}
+
+  button{
+    font-family:var(--sans);font-size:.88rem;font-weight:600;cursor:pointer;
+    border-radius:7px;padding:9px 15px;border:1px solid var(--line);
+    background:#fff;color:var(--ink);transition:background .12s,border-color .12s;
+  }
+  button:hover{background:#F3F4F1;}
+  button:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+  button.primary{background:var(--garnet);border-color:var(--garnet);color:#fff;}
+  button.primary:hover{background:var(--garnet-hi);border-color:var(--garnet-hi);}
+  button.ghost{background:transparent;border-color:transparent;color:var(--muted);padding:8px 8px;}
+  button.ghost:hover{background:#EEF0EC;color:var(--ink);}
+  button.tiny{font-size:.78rem;padding:5px 9px;}
+
+  .hint{font-size:.8rem;color:var(--muted);margin:10px 0 0;}
+  .meta-line{display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin-bottom:6px;}
+  .meta-line > div{flex:1 1 200px;}
+
+  /* Hito cards */
+  #hitos{margin-top:4px;display:flex;flex-direction:column;gap:12px;}
+  .empty{color:var(--muted);font-size:.9rem;padding:18px;border:1px dashed var(--line);
+    border-radius:8px;text-align:center;background:#fbfbf9;}
+  .card{border:1px solid var(--line);border-left:4px solid var(--garnet);
+    border-radius:8px;padding:12px 12px 12px 13px;background:#fff;}
+  .card.off{opacity:.5;border-left-color:var(--muted);}
+  .card .top{display:flex;gap:10px;align-items:center;margin-bottom:10px;}
+  .card .top select{flex:1 1 auto;font-weight:600;}
+  .card .top .move{display:flex;gap:2px;}
+  .card .fields{display:grid;grid-template-columns:120px 1fr;gap:8px 10px;align-items:center;}
+  .card .fields .full{grid-column:1 / -1;}
+  .card .fields label{font-size:.72rem;color:var(--muted);font-weight:600;}
+  .card .opt{display:flex;gap:14px;align-items:center;margin-top:9px;flex-wrap:wrap;}
+  .card .opt label{font-size:.8rem;color:var(--muted);display:inline-flex;gap:6px;align-items:center;cursor:pointer;}
+  .card .opt input[type=text]{width:160px;}
+  .chip-off{font-size:.72rem;color:var(--muted);}
+
+  /* Output sheet */
+  #outWrap .body{padding:0;}
+  .sheet{
+    background:#fff;padding:30px 34px;font-family:var(--serif);
+    color:#141414;line-height:1.75;font-size:1rem;text-align:justify;
+    min-height:300px;
+  }
+  .sheet .ant{margin:0 0 15px;}
+  .sheet .ord{font-variant:small-caps;font-weight:700;color:var(--garnet);
+    letter-spacing:.02em;}
+  .sheet .placeholder{font-family:var(--sans);color:var(--muted);text-align:center;
+    padding:40px 10px;font-size:.92rem;}
+  .out-actions{display:flex;gap:10px;flex-wrap:wrap;padding:14px 18px;border-top:1px solid var(--line-soft);}
+  #copied{font-size:.82rem;color:var(--slate);align-self:center;opacity:0;transition:opacity .2s;}
+  #copied.show{opacity:1;}
+
+  details.how{margin-top:22px;background:var(--paper);border:1px solid var(--line);border-radius:10px;}
+  details.how summary{cursor:pointer;padding:13px 18px;font-weight:600;font-size:.9rem;list-style:none;}
+  details.how summary::-webkit-details-marker{display:none;}
+  details.how summary::before{content:"› ";color:var(--garnet);font-weight:700;}
+  details.how[open] summary::before{content:"⌄ ";}
+  details.how .inner{padding:0 18px 18px;font-size:.9rem;color:#333;}
+  details.how ol{margin:6px 0;padding-left:20px;}
+  details.how li{margin:5px 0;}
+  code{background:#EEF0EC;padding:1px 5px;border-radius:4px;font-size:.85em;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1><span class="sub">Herramienta de trabajo · orden civil</span>Generador de antecedentes de hecho</h1>
+    <span class="offline"><span class="dot"></span>Sin conexión · los datos no salen de este equipo</span>
+  </header>
+
+  <div class="grid">
+
+    <!-- IZQUIERDA -->
+    <div>
+      <section class="panel">
+        <div class="head"><div class="step"><span class="num">1</span><h2>Pega el extracto de tramitación</h2></div>
+          <button class="tiny ghost" id="demoBtn">Cargar ejemplo</button>
+        </div>
+        <div class="body">
+          <textarea id="raw" placeholder="Pega aquí el volcado de la tramitación del expediente (EJCAT), con las fechas de cada asiento…"></textarea>
+          <div class="row">
+            <button class="primary" id="analyzeBtn">Analizar tramitación</button>
+            <button id="clearBtn">Vaciar</button>
+            <span class="grow"></span>
+          </div>
+          <p class="hint">La fecha de cada asiento se interpreta como la de la <strong>resolución</strong> (no la de notificación).</p>
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top:22px;">
+        <div class="head"><div class="step"><span class="num">2</span><h2>Revisa los hitos detectados</h2></div>
+          <button class="tiny ghost" id="addBtn">+ Añadir hito</button>
+        </div>
+        <div class="body">
+          <div class="meta-line">
+            <div>
+              <label class="fld" for="tipoProc">Tipo de procedimiento</label>
+              <input type="text" id="tipoProc" placeholder="juicio ordinario">
+            </div>
+          </div>
+          <div id="hitos"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- DERECHA -->
+    <div>
+      <section class="panel" id="outWrap">
+        <div class="head"><div class="step"><span class="num">3</span><h2>Antecedentes de hecho</h2></div>
+          <button class="tiny primary" id="genBtn">Generar</button>
+        </div>
+        <div class="body">
+          <div class="sheet" id="sheet">
+            <div class="placeholder">Analiza la tramitación y pulsa <strong>Generar</strong>.<br>Empezarán en el <strong>SEGUNDO</strong> (el primero lo pone tu sistema).</div>
+          </div>
+        </div>
+        <div class="out-actions">
+          <button class="primary" id="copyBtn">Copiar texto</button>
+          <button id="dlBtn">Descargar .txt</button>
+          <span id="copied">Copiado ✓</span>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <details class="how">
+    <summary>Cómo funciona y qué detecta</summary>
+    <div class="inner">
+      <ol>
+        <li>Pegas el extracto de tramitación del expediente y pulsas <strong>Analizar</strong>.</li>
+        <li>La herramienta localiza los hitos relevantes: <strong>admisión</strong> (con la resolución y el plazo de emplazamiento), <strong>contestación</strong>, <strong>audiencia previa</strong> y <strong>juicio</strong>, y resalta incidencias singulares (reconvención, contestación a la reconvención, ampliación, allanamiento, desistimiento, rebeldía, declinatoria, acumulación, medidas cautelares, suspensiones, diligencias finales, conclusiones, transacción / satisfacción extraprocesal).</li>
+        <li>Revisas y corriges cada tarjeta —tipo, fecha, resolución— y puedes desactivar, reordenar o añadir hitos a mano.</li>
+        <li>Pulsas <strong>Generar</strong>: se redacta en registro forense desde el <code>SEGUNDO.-</code> hasta la fórmula final. El texto es editable; corrígelo y cópialo a tu resolución.</li>
+      </ol>
+      <p style="color:var(--muted);margin:4px 0 0;">Todo el procesamiento ocurre en tu navegador. No hay conexión a internet ni envío de datos: puedes abrir este archivo con el equipo desconectado.</p>
+    </div>
+  </details>
+
+</div>
+
+<script>
+"use strict";
+
+/* ============ utilidades ============ */
+const norm = s => (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
+const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+
+// Devuelve todas las fechas de un texto, con forma ordenable y forma larga "d de mes de aaaa"
+function parseFechas(text){
+  const out=[];
+  const t = text;
+  // formato largo: 5 de octubre de 2021
+  const reLarga=/(\d{1,2})\s+de\s+([a-záéíóú]+)\s+de\s+(\d{4})/gi;
+  let m;
+  while((m=reLarga.exec(t))!==null){
+    const mesIdx=MESES.indexOf(norm(m[2]));
+    if(mesIdx<0) continue;
+    const d=parseInt(m[1],10), y=parseInt(m[3],10);
+    out.push({idx:m.index, sort:new Date(y,mesIdx,d).getTime(), larga:`${d} de ${MESES[mesIdx]} de ${y}`});
+  }
+  // formato numérico: 22/03/2021 o 22-03-2021
+  const reNum=/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/g;
+  while((m=reNum.exec(t))!==null){
+    let d=parseInt(m[1],10), mo=parseInt(m[2],10), y=parseInt(m[3],10);
+    if(y<100) y+=2000;
+    if(mo<1||mo>12||d<1||d>31) continue;
+    out.push({idx:m.index, sort:new Date(y,mo-1,d).getTime(), larga:`${d} de ${MESES[mo-1]} de ${y}`});
+  }
+  out.sort((a,b)=>a.idx-b.idx);
+  return out;
+}
+
+/* ============ diccionario de clasificación (prioridad de arriba a abajo) ============ */
+const REGLAS = [
+  {tipo:"contestacion_reconvencion", kw:["contestacion a la reconvencion","contesta a la reconvencion","contestada la reconvencion","impugna la reconvencion","oposicion a la reconvencion"]},
+  {tipo:"reconvencion", kw:["reconvencion","reconviene","reconvencional"]},
+  {tipo:"ampliacion", kw:["ampliacion de la demanda","amplia la demanda","ampliada la demanda"]},
+  {tipo:"allanamiento", kw:["allanamiento","se allana","allanado"]},
+  {tipo:"desistimiento", kw:["desistimiento","desiste","desistido","desistir"]},
+  {tipo:"rebeldia", kw:["rebeldia","en rebeldia"]},
+  {tipo:"declinatoria", kw:["declinatoria"]},
+  {tipo:"acumulacion", kw:["acumulacion","acumular","acumulado los autos","acumulacion de acciones","acumulacion de procesos"]},
+  {tipo:"medidas_cautelares", kw:["medidas cautelares","medida cautelar"]},
+  {tipo:"diligencias_finales", kw:["diligencias finales","diligencia final"]},
+  {tipo:"conclusiones", kw:["conclusiones por escrito","tramite de conclusiones"]},
+  {tipo:"transaccion", kw:["transaccion","acuerdo transaccional","satisfaccion extraprocesal","enervacion","enerva la accion","avenencia"]},
+  {tipo:"suspension", kw:["suspension del procedimiento","se suspende","queda suspendido","suspension del curso","acuerda la suspension"]},
+  {tipo:"audiencia_previa", kw:["audiencia previa"]},
+  {tipo:"juicio", kw:["acto del juicio","del juicio","citacion a juicio","citadas ... a juicio","vista del juicio","celebracion del juicio","para el juicio","senala ... juicio"]},
+  {tipo:"contestacion", kw:["contestacion a la demanda","escrito de contestacion","contesta a la demanda","por contestada","contestada la demanda"]},
+  {tipo:"admision", kw:["admite a tramite","admision a tramite","admitir a tramite","se admite la demanda","admitida a tramite","admitida la demanda","decreto de admision"]},
+  {tipo:"demanda", kw:["demanda de juicio","turnada","interpuesta","presentada demanda","demanda interpuesta","reparto"]},
+];
+
+const ETIQUETAS = {
+  admision:"Admisión a trámite",
+  contestacion:"Contestación a la demanda",
+  audiencia_previa:"Audiencia previa",
+  juicio:"Juicio / vista",
+  reconvencion:"Reconvención",
+  contestacion_reconvencion:"Contestación a la reconvención",
+  ampliacion:"Ampliación de la demanda",
+  allanamiento:"Allanamiento",
+  desistimiento:"Desistimiento",
+  rebeldia:"Rebeldía",
+  declinatoria:"Declinatoria",
+  acumulacion:"Acumulación",
+  medidas_cautelares:"Medidas cautelares",
+  suspension:"Suspensión",
+  diligencias_finales:"Diligencias finales",
+  conclusiones:"Trámite de conclusiones",
+  transaccion:"Transacción / satisfacción extraprocesal",
+  otro:"Otro (usar detalle)"
+};
+const TIPOS_ORDEN = ["admision","contestacion","reconvencion","contestacion_reconvencion","ampliacion","audiencia_previa","allanamiento","desistimiento","rebeldia","declinatoria","acumulacion","medidas_cautelares","suspension","conclusiones","diligencias_finales","juicio","transaccion","otro"];
+
+function clasifica(lineNorm){
+  for(const r of REGLAS){
+    for(const k of r.kw){
+      // permitir comodín "..."
+      if(k.includes("...")){
+        const parts=k.split("...").map(p=>p.trim());
+        if(parts.every(p=>lineNorm.includes(p))) return r.tipo;
+      } else if(lineNorm.includes(k)){
+        return r.tipo;
+      }
+    }
+  }
+  return null;
+}
+
+function detectaResolucion(ln){
+  if(ln.includes("diligencia de ordenacion")) return "Diligencia de Ordenación";
+  if(ln.includes("decreto")) return "Decreto";
+  if(ln.includes("providencia")) return "Providencia";
+  if(/\bauto\b/.test(ln)) return "Auto";
+  return "";
+}
+
+/* ============ análisis del volcado ============ */
+let HITOS = [];
+let TIPO_PROC = "juicio ordinario";
+let uid = 0;
+
+function analizar(raw){
+  const lineas = raw.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0);
+  const hitos=[];
+  let tipoProc = null;
+
+  for(const linea of lineas){
+    const ln = norm(linea);
+    if(!tipoProc){
+      if(ln.includes("juicio verbal")) tipoProc="juicio verbal";
+      else if(ln.includes("juicio ordinario")) tipoProc="juicio ordinario";
+    }
+    const tipo = clasifica(ln);
+    if(!tipo || tipo==="demanda") continue; // la demanda la pone el PRIMERO del sistema
+
+    const fechas = parseFechas(linea);
+    const fechaAsiento = fechas.length ? fechas[0] : null;
+    // fecha señalada = una fecha larga distinta del asiento (típico "señalada para el día …")
+    let fechaSenyalada = null;
+    if(fechas.length>1){
+      const cand = fechas.slice(1).find(f=>f.sort!==(fechaAsiento&&fechaAsiento.sort));
+      if(cand) fechaSenyalada = cand.larga;
+    }
+    const plazoM = ln.match(/plazo de\s+(\d{1,3})\s+dias/);
+    const celebrada = /celebrad[ao]/.test(ln);
+
+    hitos.push({
+      id:++uid,
+      tipo,
+      fecha: fechaAsiento ? fechaAsiento.larga : "",
+      sort: fechaAsiento ? fechaAsiento.sort : Number.MAX_SAFE_INTEGER,
+      resolucion: detectaResolucion(ln),
+      plazo: plazoM ? plazoM[1] : "",
+      fechaSenyalada: fechaSenyalada || "",
+      celebrada,
+      detalle:"",
+      on:true
+    });
+  }
+
+  // ordenar por fecha de asiento
+  hitos.sort((a,b)=>a.sort-b.sort);
+  HITOS = hitos;
+  TIPO_PROC = tipoProc || "juicio ordinario";
+  document.getElementById("tipoProc").value = TIPO_PROC;
+  render();
+}
+
+/* ============ pintar tarjetas ============ */
+function render(){
+  const cont = document.getElementById("hitos");
+  cont.innerHTML="";
+  if(HITOS.length===0){
+    cont.innerHTML='<div class="empty">No se han detectado hitos todavía. Pega el extracto y pulsa <strong>Analizar</strong>, o añade uno a mano.</div>';
+    return;
+  }
+  HITOS.forEach((h,i)=>{
+    const card=document.createElement("div");
+    card.className="card"+(h.on?"":" off");
+
+    const opciones = TIPOS_ORDEN.map(t=>`<option value="${t}"${t===h.tipo?" selected":""}>${ETIQUETAS[t]}</option>`).join("");
+    const esAP_o_juicio = (h.tipo==="audiencia_previa"||h.tipo==="juicio");
+
+    card.innerHTML=`
+      <div class="top">
+        <select data-i="${i}" data-f="tipo" aria-label="Tipo de hito">${opciones}</select>
+        <div class="move">
+          <button class="tiny ghost" data-act="up" data-i="${i}" title="Subir">↑</button>
+          <button class="tiny ghost" data-act="down" data-i="${i}" title="Bajar">↓</button>
+          <button class="tiny ghost" data-act="toggle" data-i="${i}" title="Incluir/excluir">${h.on?"◉":"○"}</button>
+          <button class="tiny ghost" data-act="del" data-i="${i}" title="Eliminar">✕</button>
+        </div>
+      </div>
+      <div class="fields">
+        <label>Fecha resolución</label>
+        <input type="text" data-i="${i}" data-f="fecha" value="${escAttr(h.fecha)}" placeholder="p. ej. 22 de marzo de 2021">
+        <label>Resolución</label>
+        <select data-i="${i}" data-f="resolucion">
+          ${["","Decreto","Diligencia de Ordenación","Auto","Providencia"].map(r=>`<option value="${r}"${r===h.resolucion?" selected":""}>${r||"—"}</option>`).join("")}
+        </select>
+        <label class="full" style="margin-top:2px;">Detalle (opcional, sustituye a la redacción automática)</label>
+        <input class="full" type="text" data-i="${i}" data-f="detalle" value="${escAttr(h.detalle)}" placeholder="texto libre para este antecedente">
+      </div>
+      <div class="opt">
+        ${h.tipo==="admision" ? `<label>Plazo (días) <input type="text" data-i="${i}" data-f="plazo" value="${escAttr(h.plazo)}" style="width:60px;"></label>`:""}
+        ${esAP_o_juicio ? `<label><input type="checkbox" data-i="${i}" data-f="celebrada" ${h.celebrada?"checked":""}> celebrada</label>
+                           <label>señalada p/ <input type="text" data-i="${i}" data-f="fechaSenyalada" value="${escAttr(h.fechaSenyalada)}" placeholder="fecha"></label>`:""}
+        ${!h.on?'<span class="chip-off">— excluido</span>':''}
+      </div>
+    `;
+    cont.appendChild(card);
+  });
+}
+function escAttr(s){return (s||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
+
+/* delegación de eventos en las tarjetas */
+document.getElementById("hitos").addEventListener("input",e=>{
+  const el=e.target; const i=el.dataset.i, f=el.dataset.f;
+  if(i==null) return;
+  const h=HITOS[i];
+  if(f==="celebrada"){h.celebrada=el.checked;}
+  else if(f){ h[f]=el.value; }
+  if(f==="tipo") render();
+});
+document.getElementById("hitos").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  const i=parseInt(b.dataset.i,10); const act=b.dataset.act;
+  if(isNaN(i)) return;
+  if(act==="del") HITOS.splice(i,1);
+  else if(act==="toggle") HITOS[i].on=!HITOS[i].on;
+  else if(act==="up"&&i>0){ [HITOS[i-1],HITOS[i]]=[HITOS[i],HITOS[i-1]]; }
+  else if(act==="down"&&i<HITOS.length-1){ [HITOS[i+1],HITOS[i]]=[HITOS[i],HITOS[i+1]]; }
+  render();
+});
+
+/* ============ redacción ============ */
+const ORDINALES=["PRIMERO","SEGUNDO","TERCERO","CUARTO","QUINTO","SEXTO","SÉPTIMO","OCTAVO","NOVENO","DÉCIMO","UNDÉCIMO","DUODÉCIMO","DECIMOTERCERO","DECIMOCUARTO","DECIMOQUINTO","DECIMOSEXTO","DECIMOSÉPTIMO","DECIMOCTAVO"];
+function ordinal(n){return ORDINALES[n]||("ANTECEDENTE "+(n+1));}
+
+function frase(h){
+  const res = h.resolucion || "";
+  const F = h.fecha || "(fecha)";
+  if(h.detalle && h.detalle.trim()) return h.detalle.trim().replace(/\s+/g," ");
+  switch(h.tipo){
+    case "admision":{
+      let s = `Por ${res||"Decreto"} de fecha ${F} se admitió a trámite la demanda`;
+      s += h.plazo ? `, emplazando a la parte demandada para que la contestara en el plazo de ${h.plazo} días.` : ".";
+      return s;
+    }
+    case "contestacion":{
+      let s = `Presentado escrito de contestación en tiempo y forma por la parte demandada`;
+      s += res ? `, se dictó ${res} teniéndola por personada y por contestada la demanda.` : ", se la tuvo por personada y por contestada la demanda.";
+      return s;
+    }
+    case "reconvencion":
+      return `La parte demandada formuló asimismo reconvención frente a la parte actora.`;
+    case "contestacion_reconvencion":
+      return `Conferido traslado, la parte actora contestó a la reconvención en tiempo y forma.`;
+    case "ampliacion":
+      return `La parte actora amplió la demanda, de la que se confirió traslado a la parte contraria.`;
+    case "audiencia_previa":{
+      if(h.celebrada){
+        let s=`Se celebró el acto de la audiencia previa`;
+        s += h.fechaSenyalada ? `; admitida la prueba propuesta, se señaló el acto del juicio para el día ${h.fechaSenyalada}.` : `.`;
+        return s;
+      }
+      const cuando = h.fechaSenyalada || F;
+      return `Se convocó a las partes al acto de la audiencia previa, señalada para el día ${cuando}.`;
+    }
+    case "juicio":{
+      if(h.celebrada) return `El acto del juicio tuvo lugar el día ${F}.`;
+      const cuando = h.fechaSenyalada || F;
+      return `Se señaló el acto del juicio para el día ${cuando}.`;
+    }
+    case "allanamiento":
+      return `La parte demandada se allanó a las pretensiones deducidas de contrario.`;
+    case "desistimiento":
+      return `La parte actora presentó escrito de desistimiento del procedimiento.`;
+    case "rebeldia":
+      return `No habiendo comparecido la parte demandada pese a haber sido emplazada en legal forma, fue declarada en situación procesal de rebeldía.`;
+    case "declinatoria":
+      return `Por la parte demandada se planteó declinatoria, que fue resuelta en su momento procesal.`;
+    case "acumulacion":
+      return `Se acordó la acumulación interesada, continuándose la tramitación de forma conjunta.`;
+    case "medidas_cautelares":
+      return `Se sustanció la correspondiente pieza de medidas cautelares.`;
+    case "suspension":
+      return `Quedó suspendido el curso del procedimiento en los términos acordados.`;
+    case "diligencias_finales":
+      return `Se acordó la práctica de diligencias finales.`;
+    case "conclusiones":
+      return `Se confirió a las partes el trámite de conclusiones por escrito.`;
+    case "transaccion":
+      return `Las partes pusieron de manifiesto haber alcanzado un acuerdo, con la consiguiente incidencia en el objeto del proceso.`;
+    default:
+      return h.detalle || `En fecha ${F} se dictó la correspondiente resolución.`;
+  }
+}
+
+function generar(){
+  const activos = HITOS.filter(h=>h.on);
+  const antecedentes=[];
+
+  // Bloque de apertura (SEGUNDO): admisión (+contestación estándar +audiencia previa señalada)
+  // siempre que no haya incidencia singular intercalada.
+  const singularesAntesDeAP = ["reconvencion","contestacion_reconvencion","ampliacion","allanamiento","desistimiento","declinatoria","acumulacion","medidas_cautelares","suspension"];
+  const usados = new Set();
+
+  const admision = activos.find(h=>h.tipo==="admision");
+  const contest = activos.find(h=>h.tipo==="contestacion");
+  const haySingularTemprana = activos.some(h=>singularesAntesDeAP.includes(h.tipo));
+  const apSenal = activos.find(h=>h.tipo==="audiencia_previa" && !h.celebrada);
+
+  const bloque=[];
+  if(admision){bloque.push(frase(admision)); usados.add(admision.id);}
+  if(contest && !haySingularTemprana){bloque.push(frase(contest)); usados.add(contest.id);}
+  if(apSenal && !haySingularTemprana){bloque.push(frase(apSenal)); usados.add(apSenal.id);}
+  if(bloque.length) antecedentes.push(bloque.join(" "));
+
+  // Resto de hitos, en orden, uno por antecedente.
+  // Fusión: audiencia previa celebrada + juicio celebrado en un mismo antecedente.
+  const resto = activos.filter(h=>!usados.has(h.id));
+  for(let i=0;i<resto.length;i++){
+    const h=resto[i];
+    if(usados.has(h.id)) continue;
+    if(h.tipo==="audiencia_previa" && h.celebrada){
+      const juicio = resto.find(x=>x.tipo==="juicio" && !usados.has(x.id));
+      let s = `Se celebró el acto de la audiencia previa`;
+      const fj = juicio ? (juicio.celebrada? juicio.fecha : (juicio.fechaSenyalada||juicio.fecha)) : (h.fechaSenyalada||"");
+      if(juicio){
+        s += `; admitida la prueba propuesta, se señaló el acto del juicio, que finalmente tuvo lugar el día ${fj}.`;
+        usados.add(juicio.id);
+      } else if(h.fechaSenyalada){
+        s += `; admitida la prueba propuesta, se señaló el acto del juicio para el día ${h.fechaSenyalada}.`;
+      } else { s += `.`; }
+      usados.add(h.id);
+      antecedentes.push(s);
+      continue;
+    }
+    usados.add(h.id);
+    antecedentes.push(frase(h));
+  }
+
+  // Fórmula final
+  antecedentes.push("En la tramitación de este procedimiento se han observado todas las prescripciones legales.");
+
+  pintarSalida(antecedentes);
+}
+
+let ULTIMO_TEXTO="";
+function pintarSalida(ants){
+  const sheet=document.getElementById("sheet");
+  if(ants.length===0){sheet.innerHTML='<div class="placeholder">No hay hitos activos que redactar.</div>';ULTIMO_TEXTO="";return;}
+  let html="", plano="";
+  ants.forEach((txt,i)=>{
+    const ord=ordinal(i+1); // empieza en SEGUNDO (índice 1)
+    html+=`<p class="ant"><span class="ord">${ord}.-</span> ${txt}</p>`;
+    plano+=`${ord}.- ${txt}\n\n`;
+  });
+  sheet.innerHTML=html;
+  ULTIMO_TEXTO=plano.trim();
+}
+
+/* ============ botones globales ============ */
+document.getElementById("analyzeBtn").addEventListener("click",()=>{
+  const raw=document.getElementById("raw").value;
+  if(!raw.trim()){alert("Pega primero el extracto de tramitación.");return;}
+  analizar(raw);
+});
+document.getElementById("clearBtn").addEventListener("click",()=>{
+  document.getElementById("raw").value=""; HITOS=[]; render();
+});
+document.getElementById("genBtn").addEventListener("click",()=>{
+  TIPO_PROC=document.getElementById("tipoProc").value||"juicio ordinario";
+  generar();
+});
+document.getElementById("addBtn").addEventListener("click",()=>{
+  HITOS.push({id:++uid,tipo:"otro",fecha:"",sort:Number.MAX_SAFE_INTEGER,resolucion:"",plazo:"",fechaSenyalada:"",celebrada:false,detalle:"",on:true});
+  render();
+});
+document.getElementById("copyBtn").addEventListener("click",async()=>{
+  if(!ULTIMO_TEXTO){generar();}
+  try{
+    await navigator.clipboard.writeText(ULTIMO_TEXTO);
+    flashCopiado();
+  }catch(e){
+    // fallback sin permisos de portapapeles (offline / file://)
+    const ta=document.createElement("textarea");ta.value=ULTIMO_TEXTO;document.body.appendChild(ta);
+    ta.select();try{document.execCommand("copy");flashCopiado();}catch(_){alert("Selecciona y copia el texto manualmente.");}
+    document.body.removeChild(ta);
+  }
+});
+function flashCopiado(){const c=document.getElementById("copied");c.classList.add("show");setTimeout(()=>c.classList.remove("show"),1600);}
+document.getElementById("dlBtn").addEventListener("click",()=>{
+  if(!ULTIMO_TEXTO){generar();}
+  const blob=new Blob([ULTIMO_TEXTO],{type:"text/plain;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="antecedentes_de_hecho.txt";
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
+});
+
+/* ============ ejemplo ============ */
+const EJEMPLO = `15/03/2021 - Demanda de juicio ordinario interpuesta por la representación procesal de la parte actora, junto con sus copias y documentos.
+22/03/2021 - Decreto. Se admite a trámite la demanda y se emplaza a la parte demandada para que la conteste en el plazo de 20 días.
+10/05/2021 - Escrito de contestación a la demanda presentado en tiempo y forma por la parte demandada.
+18/05/2021 - Diligencia de Ordenación. Se tiene por personada y por contestada la demanda a la parte demandada y se convoca a las partes a la audiencia previa señalada para el día 5 de octubre de 2021.
+05/10/2021 - Celebrada la audiencia previa. Admitida la prueba propuesta, se señala el acto del juicio para el día 21 de junio de 2022.
+21/06/2022 - Celebrado el acto del juicio, quedando los autos vistos para sentencia.`;
+document.getElementById("demoBtn").addEventListener("click",()=>{
+  document.getElementById("raw").value=EJEMPLO;
+  analizar(EJEMPLO);
+  generar();
+});
+
+render();
+</script>
+</body>
+</html>
